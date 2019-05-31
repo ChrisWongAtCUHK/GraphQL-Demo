@@ -93,3 +93,18 @@
         "name3": "Mary"
     }
 ```
+    - Fragment
+```graphql
+    query {
+        user1: user(name: "Fong") {
+            ...userData
+        },
+        user2: user(name: "Kevin") {
+            ...userData
+        }
+    }
+    fragment userData on User {
+        id
+        name
+    }
+```
