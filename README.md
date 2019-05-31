@@ -154,8 +154,8 @@
     - Input Object Type
 ```graphql
     # Operation Type 為 mutation 時不可省略
-    mutation {
-        likePost(postId: 1) {
+    mutation AddPostAgain ($input: AddPostInput!) {
+        addPost(input: $input) {
             id
             title
             author {
