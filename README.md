@@ -29,18 +29,34 @@
 }
 ```
 * [GraphQL 入門： Arguments, Aliases, Fragment 讓 Query 更好用 (進階 Query)](https://ithelp.ithome.com.tw/articles/10203965)
+    - Arguments
 ```graphql
-{
-    # 傳入 Argument "Fong" (Argument for Object Type)
-    user(name: "Fong") {
-        id
-        name
-        # 傳入 Argument METRE (Argument for Scalar Type)，
-        # 此 field 回傳 FLOAT type
-        height
-        # 傳入 Argument POUND (Argument for Scalar Type)，
-        # 此 field 回傳 FLOAT type
-        weight(unit: POUND)
+    {
+        # 傳入 Argument "Fong" (Argument for Object Type)
+        user(name: "Fong") {
+            id
+            name
+            # 傳入 Argument METRE (Argument for Scalar Type)，
+            # 此 field 回傳 FLOAT type
+            height
+            # 傳入 Argument POUND (Argument for Scalar Type)，
+            # 此 field 回傳 FLOAT type
+            weight(unit: POUND)
+        }
     }
-}
+```
+    - Variables
+```graphql
+    # 因為 user 的 argument name 為必填 `!`，所以在參數宣告列上也要加上 `!`
+    query ($name: String!) {
+        user(name: $name) {
+            id
+            name
+        },
+    }
+```
+```json
+    {
+        "name": "Fong"
+    }
 ```
