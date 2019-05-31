@@ -158,9 +158,10 @@ const resolvers = {
     },
     likePost: (root, args, context) => {
       const { postId } = args;
-      const post = findPostById(postId);
-      if (!post) throw new Error(`Post ${psotId} Not Exists`);
+      const post = findPostById(parseInt(postId));
+      if (!post) throw new Error(`Post ${postId} Not Exists`);
 
+      if(!post.likeGiverIds) post.likeGiverIds = [];
       if (post.likeGiverIds.includes(meId)) {
         // 如果已經按過讚就收回
         const index = post.likeGiverIds.findIndex(v => v === userId);
@@ -210,6 +211,7 @@ const resolvers = {
   Post: {
     // 2-1. parent 為 post 的資料，透過 post.likeGiverIds 連接到 users
     likeGivers: (parent, args, context) => {
+      if(!parent.likeGiverIds) return [];
       return parent.likeGiverIds.map(id => findUserById(id));
     },
     // 2-2. parent 為 post 的資料，透過 post.author
@@ -224,7 +226,7 @@ const server = new ApolloServer({
   // Schema 部分
   typeDefs,
   // Resolver 部分
-  resolvers 
+  resolvers
 });
 
 // 4. 啟動 Server

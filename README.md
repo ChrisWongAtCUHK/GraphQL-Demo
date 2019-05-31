@@ -118,6 +118,10 @@
             author {
                 name
             }
+            likeGivers {
+                id
+                name
+            }
         }
     }
 ```
@@ -126,6 +130,19 @@
     # Operation Type 為 mutation 時不可省略
     mutation {
         addPost(title: "Mutation Is Awesome", content: "Adding Post is like a piece of cake") {
+            id
+            title
+            author {
+                name
+            }
+        }
+}
+```
+    - 按讚
+```graphql
+    # Operation Type 為 mutation 時不可省略
+    mutation {
+        likePost(postId: 1) {
             id
             title
             author {
