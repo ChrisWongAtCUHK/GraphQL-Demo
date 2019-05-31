@@ -1,6 +1,6 @@
 import { ApolloServer, gql } from 'apollo-server';
 
-// 1. 加入假資料
+// 假資料
 const users = [
   {
     id: 1,
@@ -28,8 +28,13 @@ const users = [
   }
 ];
 
+const posts = [
+  { id: 1, authorId: 1, title: "Hello World!", content: "This is my first post.", likeGiverIds: [2] },
+  { id: 2, authorId: 2, title: "Good Night", content: "Have a Nice Dream =)", likeGiverIds: [2, 3] },
+  { id: 3, authorId: 1, title: "I Love U", content: "Here's my second post!", likeGiverIds: [] },
+];
+
 // The GraphQL schema
-// 2. 新增 User type 、在 Query 中新增 me field
 const typeDefs = gql`
   # Enum Type 為一種特殊的 Scalar Type ，使用時只能出現裡面有定義到的值且不需要加引號
   # 進入 JavaSript 中使用時，會轉為 String 格式
@@ -73,6 +78,24 @@ const typeDefs = gql`
     weight(unit: WeightUnit = KILOGRAM): Float
     "朋友們"
     friends: [User]
+    "貼文"
+    posts: [Post]
+  }
+
+  """
+  貼文
+  """
+  type Post {
+    "識別碼"
+    id: ID!
+    "作者"
+    author: User
+    "標題"
+    title: String
+    "內容"
+    content: String
+    "按讚者"
+    likeGivers: [User]
   }
 
   type Query {
@@ -84,28 +107,76 @@ const typeDefs = gql`
     user(name: String!): User
     "取得所有使用者"
     users: [User]
+    "取得所有貼文"
+    posts: [Post]
+  }
+
+  # Mutation 定義
+  type Mutation {
+    "新增貼文"
+    addPost(title: String!, content: String): Post
+    "貼文按讚 (收回讚)"
+    likePost(postId: ID!): Post
   }
 `;
 
-// A map of functions which return data for the schema.
+const meId = 1;
+
+// Helper Functions
+const findUserById = id => users.find(user => user.id === id);
+const findUserByName = name => users.find(user => user.name === name);
+const filterPostsByAuthorId = authorId =>
+  posts.filter(post => post.authorId === authorId);
+const findPostById = id => posts.find(post => post.id === id);
+
+// 1. 新增 User.posts field Resovler
+// 2. 新增 Post Type Resolver 及底下的 field Resolver
 const resolvers = {
   Query: {
     hello: () => 'world',
-    // 3. 加上 me 的 resolver (一定要在 Query 中喔)
     me: () => users[0],
     user: (root, args, context) => {
       return users.find(user => user.name === args.name);
     },
-    // 3-1 在 `Query` 裡新增 `users`
-    users: () => users
+    users: () => users,
+    posts: () => posts
   },
-  // 3-2 新增 `User` 並包含 `friends` 的 field resolver
+  // Mutation Type Resolver
+  Mutation : {
+    addPost: (root, args, context) => {
+      const { title, content } = args;
+      // 新增 post
+      posts.push({
+        id: posts.length + 1,
+        authorId: meId,
+        title,
+        content,
+        likeGivers: []
+      });
+      // 回傳新增的那篇 post
+      return posts[posts.length - 1];
+    },
+    likePost: (root, args, context) => {
+      const { postId } = args;
+      const post = findPostById(postId);
+      if (!post) throw new Error(`Post ${psotId} Not Exists`);
+
+      if (post.likeGiverIds.includes(meId)) {
+        // 如果已經按過讚就收回
+        const index = post.likeGiverIds.findIndex(v => v === userId);
+        post.likeGiverIds.splice(index, 1);
+      } else {
+        // 否則就加入 likeGiverIds 名單
+        post.likeGiverIds.push(meId);
+      }
+      return post;
+    },
+  },
   User: {
     // 對應到 Schema 的 User.height
     height: (parent, args, context) => {
       const { unit } = args;
       const { height } = parent;
-      // 可注意到 Enum type 進到 javascript 就變成了 String 格式
       // 另外支援 default 值 CENTIMETRE
       if(!unit || unit === "CENTIMETRE") return height;
       else if (unit === "METRE") return height / 100;
@@ -128,6 +199,22 @@ const resolvers = {
       const { friendIds } = parent;
       // Filter 出所有 id 出現在 friendIds 的 user
       return users.filter(user => friendIds.includes(user.id));
+    },
+    // 1. User.parent field resolver, 回傳屬於該 user 的 posts
+    posts: (parent, args, context) => {
+      // parent.id 為 userId
+      return filterPostsByAuthorId(parentInt(parent.id));
+    }
+  },
+  // 2. Post type resolver
+  Post: {
+    // 2-1. parent 為 post 的資料，透過 post.likeGiverIds 連接到 users
+    likeGivers: (parent, args, context) => {
+      return parent.likeGiverIds.map(id => findUserById(id));
+    },
+    // 2-2. parent 為 post 的資料，透過 post.author
+    author: (parent, args, context) => {
+      return findUserById(parent.authorId);
     }
   }
 };
@@ -137,7 +224,7 @@ const server = new ApolloServer({
   // Schema 部分
   typeDefs,
   // Resolver 部分
-  resolvers
+  resolvers 
 });
 
 // 4. 啟動 Server

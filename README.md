@@ -108,3 +108,29 @@
         name
     }
 ```
+* [GraphQL 入門： 初次使用 Mutation](https://ithelp.ithome.com.tw/articles/10204294)
+    - 取得所有貼文
+```graphql
+    {
+        posts {
+            id
+            title
+            author {
+                name
+            }
+        }
+    }
+```
+    - 新增 post
+```graphql
+    # Operation Type 為 mutation 時不可省略
+    mutation {
+        addPost(title: "Mutation Is Awesome", content: "Adding Post is like a piece of cake") {
+            id
+            title
+            author {
+                name
+            }
+        }
+}
+```
