@@ -30,7 +30,7 @@ const typeDefs = gql`
   """
   type User {
     "識別碼"
-    id: ID
+    id: ID!
     "名字"
     name: String
     "年齡"
