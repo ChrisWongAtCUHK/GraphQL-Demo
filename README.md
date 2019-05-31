@@ -52,11 +52,20 @@
         user(name: $name) {
             id
             name
-        },
+        }
     }
 ```
 ```json
     {
         "name": "Fong"
+    }
+```
+    - Operation Name
+```graphql
+    query MyBasicInfo {
+        me {
+            id
+            name
+        }
     }
 ```
