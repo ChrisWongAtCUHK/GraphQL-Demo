@@ -15,3 +15,16 @@
     }
 }
 ```
+* [GraphQL 入門： Schema 與 Resolver 進階功能！ (Array, Non-Null, Field Resolver)](https://ithelp.ithome.com.tw/articles/10203628)
+```graphql
+{
+    users {
+        id
+        name
+        friends {
+            id
+            name
+        }
+    }
+}
+```
