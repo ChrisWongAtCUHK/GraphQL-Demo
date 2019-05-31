@@ -69,3 +69,27 @@
         }
     }
 ```
+    - Aliases
+```graphql
+    query UserData($name1: String!, $name2: String!, $name3: String!) {
+        user1: user(name: $name1) {
+            id
+            name
+        },
+        user2: user(name: $name2) {
+            id
+            name
+        },
+        user3: user(name: $name3) {
+            id
+            name
+        }
+    }
+```
+```json
+    {
+        "name1": "Fong",
+        "name2": "Kevin",
+        "name3": "Mary"
+    }
+```
