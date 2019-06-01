@@ -5,20 +5,7 @@ const jwt = require('jsonwebtoken');
 
 require('dotenv').config();
 
-const {
-  getAllUsers,
-  getAllPosts,
-  filterPostsByUserId,
-  filterUsersByUserIds,
-  findUserByUserId,
-  findUserByName,
-  findPostByPostId,
-  updateUserInfo,
-  addPost,
-  updatePost,
-  addUser,
-  deletePost
-} = require('./models');
+const { userModel, postModel } = require('./models');
 
 const SALT_ROUNDS = Number(process.env.SALT_ROUNDS)
 const SECRET = process.env.SECRET
@@ -153,7 +140,7 @@ const createToken = ({ id, email, name }, secret) =>
   
 const isPostExists = resolverFunc => (parent, args, context) => {
   const { postId } = args;
-  const post = findPostByPostId(parseInt(postId));
+  const post = postModel.findPostByPostId(parseInt(postId));
       if (!post) throw new Error(`Post ${postId} Not Exists`);
   return resolverFunc.apply(null, [parent, args, context]);
 }
@@ -161,7 +148,7 @@ const isPostExists = resolverFunc => (parent, args, context) => {
 const isPostAuthor = resolverFunc => (parent, args, context) => {
   const { postId } = args;
   const { me } = context;
-  const isAuthor = findPostByPostId(postId).authorId === me.id;
+  const isAuthor = postModel.findPostByPostId(postId).authorId === me.id;
   if (!isAuthor) throw new ForbiddenError('Only Author Can Delete this Post');
   return resolverFunc.apply(null, [parent, args, context]);
 }
@@ -170,11 +157,11 @@ const isPostAuthor = resolverFunc => (parent, args, context) => {
 const resolvers = {
   Query: {
     hello: () => 'world',
-    me: isAuthenticated((parent, args, { me }) => findUserByUserId(me.id)),
+    me: isAuthenticated((parent, args, { me }) => userModel.findUserByUserId(me.id)),
     user: (root, { name }, context) => findUserByName(name),
-    users: () => getAllUsers(),
-    posts: () => getAllPosts(),
-    post: (parent, { id }, context) => findPostByPostId(id)
+    users: () => userModel.getAllUsers(),
+    posts: () => postModel.getAllPosts(),
+    post: (parent, { id }, context) => postModel.findPostByPostId(id)
   },
   // Mutation Type Resolver
   Mutation : {
@@ -184,28 +171,28 @@ const resolvers = {
         {}
       );
 
-      return updateUserInfo(me.id, data);
+      return userModel.updateUserInfo(me.id, data);
     }),
     addFriend: isAuthenticated((parent, { userId }, { me }) => {
       if (!me) throw new Error ('Plz Log In First');
-      const currentMe = findUserByUserId(me.id);
+      const currentMe = userModel.findUserByUserId(me.id);
 
       if (currentMe.friendIds.includes(Number(userId)))
         throw new Error(`User ${userId} Already Friend.`);
 
-      const friend = findUserByUserId(userId);
-      updateUserInfo(userId, { friendIds: friend.friendIds.concat(me.id) });
+      const friend = userModel.findUserByUserId(userId);
+      userModel.updateUserInfo(userId, { friendIds: friend.friendIds.concat(me.id) });
 
-      return updateUserInfo(me.id, {
+      return userModel.updateUserInfo(me.id, {
         friendIds: currentMe.friendIds.concat(Number(userId))
       });
     }),
     addPost: isAuthenticated((root, { input }, { me }) => {
       const { title, body } = input;
-      return addPost({ authorId: me.id, title, body });
+      return postModel.addPost({ authorId: me.id, title, body });
     }),
     likePost: isAuthenticated((root, { postId }, { me }) => {
-      const post = findPostByPostId(parseInt(postId));
+      const post = postModel.findPostByPostId(parseInt(postId));
       if (!post) throw new Error(`Post ${postId} Not Exists`);
 
       if(!post.likeGiverIds) post.likeGiverIds = [];
@@ -213,33 +200,33 @@ const resolvers = {
         // 如果已經按過讚就收回
         const index = post.likeGiverIds.findIndex(v => v === me.id);
         post.likeGiverIds.splice(index, 1);
-        return updatePost(postId, {
+        return postModel.updatePost(postId, {
           likeGiverIds: post.likeGiverIds
         });
       } else {
         // 否則就加入 likeGiverIds 名單
-        return updatePost(postId, {
+        return postModel.updatePost(postId, {
           likeGiverIds: post.likeGiverIds.concat(me.id)
         });
       }
     }),
     deletePost: isAuthenticated(
       isPostExists(
-        isPostAuthor((root, { postId }, { me }) => deletePost(postId))
+        isPostAuthor((root, { postId }, { me }) => postModel.deletePost(postId))
       )
     ),
     signUp: async (root, { name, email, password }, { saltRounds }) => {
       // 1. 檢查不能有重複註冊 email
-      const isUserEmailDuplicate = getAllUsers().some(user => user.email === email);
+      const isUserEmailDuplicate = userModel.getAllUsers().some(user => user.email === email);
       if (isUserEmailDuplicate) throw new Error('User Email Duplicate');
       // 2. 將 passwrod 加密再存進去。非常重要 !!
       const hashedPassword = await hash(password, saltRounds);
       // 3. 建立新 user
-      return addUser({ name, email, password: hashedPassword });
+      return userModel.addUser({ name, email, password: hashedPassword });
     },
     login: async (root, { email, password }, { secret }) => {
       // 1. 透過 email 找到相對應的 user
-      const user = getAllUsers().find(user => user.email === email);
+      const user = userModel.getAllUsers().find(user => user.email === email);
       if (!user) throw new Error('Email Account Not Exists');
 
       // 2. 將傳進來的 password 與資料庫存的 user.password 做比對
@@ -270,13 +257,13 @@ const resolvers = {
       else if (unit === "POUND") return weight / 0.45359237;
       throw new Error(`Weight unit "${unit}" not supported.`);
     },
-    posts: (parent, args, context) => filterPostsByUserId(parent.id),
-    friends: (parent, args, context) => filterUsersByUserIds(parent.friendIds || [])
+    posts: (parent, args, context) => postModel.filterPostsByUserId(parent.id),
+    friends: (parent, args, context) => userModel.filterUsersByUserIds(parent.friendIds || [])
   },
   Post: {
-    author: (parent, args, context) => findUserByUserId(parent.authorId),
+    author: (parent, args, context) => userModel.findUserByUserId(parent.authorId),
     likeGivers: (parent, args, context) =>
-      filterUsersByUserIds(parent.likeGiverIds)
+      userModel.filterUsersByUserIds(parent.likeGiverIds)
   }
 };
 
@@ -287,7 +274,12 @@ const server = new ApolloServer({
   // Resolver 部分
   resolvers,
   context: async ({ req }) => {
-    const context = { secret: SECRET, saltRounds: SALT_ROUNDS };
+    const context = { 
+      secret: SECRET, 
+      saltRounds: SALT_ROUNDS,
+      userModel,
+      postModel
+    };
     const token = req.headers['x-token'];
     if (token) {
       try {
