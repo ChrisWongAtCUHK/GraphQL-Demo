@@ -157,12 +157,15 @@ const typeDefs = gql`
     addFriend(userId: ID!): User
     "新增貼文"
     addPost(input: AddPostInput!): Post
+    "刪貼文"
+    deletePost(postId: ID!): Post
     "貼文按讚 (收回讚)"
     likePost(postId: ID!): Post
     "註冊。 email 與 passwrod 必填"
     signUp(name: String, email: String!, password: String!): User
     "登入"
-    login (email: String!, password: String!): Token  
+    login (email: String!, password: String!): Token
+
   }
 `;
 
@@ -199,6 +202,17 @@ const addUser = ({ name, email, password }) => (
 const createToken = ({ id, email, name }) => jwt.sign({ id, email, name }, SECRET, {
   expiresIn: '1d'
 });
+
+const deletePost = (postId) =>
+  posts.splice(posts.findIndex(post => post.id === Number(postId)), 1)[0];
+  
+const isPostAuthor = resolverFunc => (parent, args, context) => {
+  const { postId } = args;
+  const { me } = context;
+  const isAuthor = findPostByPostId(postId).authorId === me.id;
+  if (!isAuthor) throw new ForbiddenError('Only Author Can Delete this Post');
+  return resolverFunc.apply(null, [parent, args, context]);
+}
 
 // field Resolver
 const resolvers = {
@@ -257,6 +271,9 @@ const resolvers = {
         });
       }
     }),
+    deletePost: isAuthenticated(
+      isPostAuthor((root, { postId }, { me }) => deletePost(postId))
+    ),
     signUp: async (root, { name, email, password }, context) => {
       // 1. 檢查不能有重複註冊 email
       const isUserEmailDuplicate = users.some(user => user.email === email);
