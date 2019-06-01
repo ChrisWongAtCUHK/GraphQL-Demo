@@ -1,4 +1,9 @@
-import { ApolloServer, gql } from 'apollo-server';
+import { ApolloServer, gql, ForbiddenError } from 'apollo-server';
+const isAuthenticated = resolverFunc => (parent, args, context) => {
+  if (!context.me) throw new ForbiddenError('Not logged in.');
+  return resolverFunc.apply(null, [parent, args, context]);
+};
+
 // 引入外部套件
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -199,10 +204,7 @@ const createToken = ({ id, email, name }) => jwt.sign({ id, email, name }, SECRE
 const resolvers = {
   Query: {
     hello: () => 'world',
-    me: (root, args, { me }) => {
-      if (!me) throw new Error ('Plz Log In First');
-      return findUserByUserId(me.id)
-    },
+    me: isAuthenticated((parent, args, { me }) => findUserByUserId(me.id)),
     user: (root, { name }, context) => findUserByName(name),
     users: () => users,
     posts: () => posts,
@@ -210,18 +212,15 @@ const resolvers = {
   },
   // Mutation Type Resolver
   Mutation : {
-    updateMyInfo: (root, { input }, { me }) => {
-      if (!me) throw new Error ('Plz Log In First');
-      // 過濾空值
-      // 過濾空值
+    updateMyInfo: isAuthenticated((parent, { input }, { me }) => {
       const data = ["name", "age"].reduce(
         (obj, key) => (input[key] ? { ...obj, [key]: input[key] } : obj),
         {}
       );
 
       return updateUserInfo(me.id, data);
-    },
-    addFriend: (parent, { userId }, { me }) => {
+    }),
+    addFriend: isAuthenticated((parent, { userId }, { me }) => {
       if (!me) throw new Error ('Plz Log In First');
       const currentMe = findUserByUserId(me.id);
 
@@ -234,12 +233,12 @@ const resolvers = {
       return updateUserInfo(me.id, {
         friendIds: currentMe.friendIds.concat(Number(userId))
       });
-    },
-    addPost: (root, { input }, { me }) => {
+    }),
+    addPost: isAuthenticated((root, { input }, { me }) => {
       const { title, body } = input;
       return addPost({ authorId: me.id, title, body });
-    },
-    likePost: (root, { postId }, { me }) => {
+    }),
+    likePost: isAuthenticated((root, { postId }, { me }) => {
       const post = findPostByPostId(parseInt(postId));
       if (!post) throw new Error(`Post ${postId} Not Exists`);
 
@@ -257,7 +256,7 @@ const resolvers = {
           likeGiverIds: post.likeGiverIds.concat(me.id)
         });
       }
-    },
+    }),
     signUp: async (root, { name, email, password }, context) => {
       // 1. 檢查不能有重複註冊 email
       const isUserEmailDuplicate = users.some(user => user.email === email);
