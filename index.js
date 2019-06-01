@@ -1,56 +1,32 @@
 import { ApolloServer, gql, ForbiddenError } from 'apollo-server';
-const isAuthenticated = resolverFunc => (parent, args, context) => {
-  if (!context.me) throw new ForbiddenError('Not logged in.');
-  return resolverFunc.apply(null, [parent, args, context]);
-};
-
 // 引入外部套件
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
-// 定義 bcrypt 加密所需 saltRounds 次數
-const SALT_ROUNDS = 2;
-// 定義 jwt 所需 secret (可隨便打)
-const SECRET = 'just_a_random_secret';
+require('dotenv').config();
 
-// 假資料
-const users = [
-  {
-    id: 1,
-    email: 'fong@test.com',
-    password: '$2b$04$wcwaquqi5ea1Ho0aKwkZ0e51/RUkg6SGxaumo8fxzILDmcrv4OBIO', // 123456
-    name: 'Fong',
-    age: 23,
-    height: 175.0,
-    weight: 70.0,
-    friendIds: [2, 3]
-  },
-  {
-    id: 2,
-    name: 'Kevin',
-    email: 'kevin@test.com',
-    passwrod: '$2b$04$uy73IdY9HVZrIENuLwZ3k./0azDvlChLyY1ht/73N4YfEZntgChbe', // 123456
-    age: 40,
-    height: 185.0,
-    weight: 90.0,
-    friendIds: [1]
-  },
-  {
-    id: 3,
-    email: 'mary@test.com',
-    password: '$2b$04$UmERaT7uP4hRqmlheiRHbOwGEhskNw05GHYucU73JRf8LgWaqWpTy', // 123456
-    name: 'Mary',
-    age: 18,
-    height: 162,
-    weight: null,
-    friendIds: [1]
-  }
-];
+const {
+  getAllUsers,
+  getAllPosts,
+  filterPostsByUserId,
+  filterUsersByUserIds,
+  findUserByUserId,
+  findUserByName,
+  findPostByPostId,
+  updateUserInfo,
+  addPost,
+  updatePost,
+  addUser,
+  deletePost
+} = require('./models');
 
-const posts = [
-  { id: 1, authorId: 1, title: "Hello World!", body: "This is my first post.", likeGiverIds: [2], createdAt: '2018-10-22T01:40:14.941Z' },
-  { id: 2, authorId: 2, title: "Good Night", body: "Have a Nice Dream =)", likeGiverIds: [2, 3], createdAt: '2018-10-24T01:40:14.941Z' } 
-];
+const SALT_ROUNDS = Number(process.env.SALT_ROUNDS)
+const SECRET = process.env.SECRET
+
+const isAuthenticated = resolverFunc => (parent, args, context) => {
+  if (!context.me) throw new ForbiddenError('Not logged in.');
+  return resolverFunc.apply(null, [parent, args, context]);
+};
 
 // The GraphQL schema
 const typeDefs = gql`
@@ -169,42 +145,11 @@ const typeDefs = gql`
   }
 `;
 
-// Helper Functions
-const findUserByName = name => users.find(user => user.name === name);
-const findPostByPostId = id => posts.find(post => post.id === Number(id));
-const filterPostsByUserId = userId =>
-  posts.filter(post => userId === post.authorId);
-const filterUsersByUserIds = userIds =>
-  users.filter(user => userIds.includes(user.id));
-const findUserByUserId = userId => users.find(user => user.id === Number(userId));
-const updateUserInfo = (userId, data) =>
-  Object.assign(findUserByUserId(userId), data);
-const addPost = ({ authorId, title, body }) =>
-  (posts[posts.length] = {
-  id: posts[posts.length - 1].id + 1,
-  authorId,
-  title,
-  body,
-  likeGiverIds: [],
-  createdAt: new Date().toISOString()
+const hash = (text, saltRounds) => bcrypt.hash(text, saltRounds);
+const createToken = ({ id, email, name }, secret) =>
+  jwt.sign({ id, email, name }, secret, {
+    expiresIn: '1d'
 });
-const updatePost = (postId, data) =>
-  Object.assign(findPostByPostId(postId), data);
-const hash = text => bcrypt.hash(text, SALT_ROUNDS);
-const addUser = ({ name, email, password }) => (
-  users[users.length] = {
-    id: users[users.length - 1].id + 1,
-    name,
-    email,
-    password
-  }
-);
-const createToken = ({ id, email, name }) => jwt.sign({ id, email, name }, SECRET, {
-  expiresIn: '1d'
-});
-
-const deletePost = (postId) =>
-  posts.splice(posts.findIndex(post => post.id === Number(postId)), 1)[0];
   
 const isPostExists = resolverFunc => (parent, args, context) => {
   const { postId } = args;
@@ -227,8 +172,8 @@ const resolvers = {
     hello: () => 'world',
     me: isAuthenticated((parent, args, { me }) => findUserByUserId(me.id)),
     user: (root, { name }, context) => findUserByName(name),
-    users: () => users,
-    posts: () => posts,
+    users: () => getAllUsers(),
+    posts: () => getAllPosts(),
     post: (parent, { id }, context) => findPostByPostId(id)
   },
   // Mutation Type Resolver
@@ -283,18 +228,18 @@ const resolvers = {
         isPostAuthor((root, { postId }, { me }) => deletePost(postId))
       )
     ),
-    signUp: async (root, { name, email, password }, context) => {
+    signUp: async (root, { name, email, password }, { saltRounds }) => {
       // 1. 檢查不能有重複註冊 email
-      const isUserEmailDuplicate = users.some(user => user.email === email);
+      const isUserEmailDuplicate = getAllUsers().some(user => user.email === email);
       if (isUserEmailDuplicate) throw new Error('User Email Duplicate');
       // 2. 將 passwrod 加密再存進去。非常重要 !!
-      const hashedPassword = await hash(password, SALT_ROUNDS);
+      const hashedPassword = await hash(password, saltRounds);
       // 3. 建立新 user
       return addUser({ name, email, password: hashedPassword });
     },
-    login: async (root, { email, password }, context) => {
+    login: async (root, { email, password }, { secret }) => {
       // 1. 透過 email 找到相對應的 user
-      const user = users.find(user => user.email === email);
+      const user = getAllUsers().find(user => user.email === email);
       if (!user) throw new Error('Email Account Not Exists');
 
       // 2. 將傳進來的 password 與資料庫存的 user.password 做比對
@@ -302,7 +247,7 @@ const resolvers = {
       if (!passwordIsValid) throw new Error('Wrong Password');
 
       // 3. 成功則回傳 token
-      return { token: await createToken(user) };
+      return { token: await createToken(user, secret) };
     }
   },
   User: {
@@ -342,20 +287,19 @@ const server = new ApolloServer({
   // Resolver 部分
   resolvers,
   context: async ({ req }) => {
-    // 1. 取出
+    const context = { secret: SECRET, saltRounds: SALT_ROUNDS };
     const token = req.headers['x-token'];
     if (token) {
       try {
-        // 2. 檢查 token + 取得解析出的資料
+        // 檢查 token + 取得解析出的資料
         const me = await jwt.verify(token, SECRET);
-        // 3. 放進 context
-        return { me };
+        // 放進 context
+        return { ...context, me };
       } catch (e) {
         throw new Error('Your session expired. Sign in again.');
       }
     }
-    // 如果沒有 token 就回傳空的 context 出去
-    return {};
+    return context;
   }
 });
 
