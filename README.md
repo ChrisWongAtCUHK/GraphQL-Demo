@@ -212,7 +212,11 @@
                   }
               }
           }
+<<<<<<< HEAD
           post(id: 1) {
+=======
+          posts(name: 1) {
+>>>>>>> 6c45139b634b7901a7b21a6504695148fc9a5e7e
               title
               body
               author {
