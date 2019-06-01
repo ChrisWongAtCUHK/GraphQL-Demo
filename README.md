@@ -172,3 +172,96 @@
         }
     }
 ```
+* [打造 GraphQL API Server 應用：部落格社交軟體 - 1 (Query & Mutation Part)](https://ithelp.ithome.com.tw/articles/10205091)
+    - Query user
+```graphql
+    {
+        me {
+            email
+            name
+            posts {
+                id
+                author {
+                    name
+                }
+            }
+            friends {
+                email
+            }
+        }
+        user(name: "Kevin") {
+            name
+        }
+        users {
+            id
+        }
+    }
+```
+    - Query post
+```graphql
+    {
+        posts {
+            id
+            title
+            body
+            author {
+                id
+                name
+                posts {
+                    id
+                }
+            }
+        }
+        posts(name: 1) {
+            title
+            body
+            author {
+                name
+            }
+            likeGivers {
+                id
+                name
+            }
+        }
+    }
+```
+- Mutation Type Demo
+```graphql
+mutation ($updateMeInput: UpdateMyInfoInput!, $addPostInput: AddPostInput!) {
+        updateMyInfo (input: $updateMeInput) {
+            name
+            age
+        }
+        addPost (input: $addPostInput) {
+            id
+            title
+            body
+        }
+        # Can run this independently to toggle like
+        likePost (postId: 3) {
+            id
+            title
+            body
+            author {
+                name
+            }
+            likeGivers {
+                id
+                name
+                age
+            }
+        }
+}
+```
+```json
+{
+    "updateMeInput": {
+        "name": "FX",
+        "age": 24
+    },
+    "addPostInput": {
+        "title": "Hello World2",
+        "body": "testttttinggggg"
+    }
+}
+```

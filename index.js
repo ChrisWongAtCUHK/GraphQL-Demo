@@ -4,6 +4,8 @@ import { ApolloServer, gql } from 'apollo-server';
 const users = [
   {
     id: 1,
+    email: 'fong@test.com',
+    password: '$2b$04$wcwaquqi5ea1Ho0aKwkZ0e51/RUkg6SGxaumo8fxzILDmcrv4OBIO', // 123456
     name: 'Fong',
     age: 23,
     height: 175.0,
@@ -13,6 +15,8 @@ const users = [
   {
     id: 2,
     name: 'Kevin',
+    email: 'kevin@test.com',
+    passwrod: '$2b$04$uy73IdY9HVZrIENuLwZ3k./0azDvlChLyY1ht/73N4YfEZntgChbe', // 123456
     age: 40,
     height: 185.0,
     weight: 90.0,
@@ -20,6 +24,8 @@ const users = [
   },
   {
     id: 3,
+    email: 'mary@test.com',
+    password: '$2b$04$UmERaT7uP4hRqmlheiRHbOwGEhskNw05GHYucU73JRf8LgWaqWpTy', // 123456
     name: 'Mary',
     age: 18,
     height: 162,
@@ -29,9 +35,8 @@ const users = [
 ];
 
 const posts = [
-  { id: 1, authorId: 1, title: "Hello World!", content: "This is my first post.", likeGiverIds: [2] },
-  { id: 2, authorId: 2, title: "Good Night", content: "Have a Nice Dream =)", likeGiverIds: [2, 3] },
-  { id: 3, authorId: 1, title: "I Love U", content: "Here's my second post!", likeGiverIds: [] },
+  { id: 1, authorId: 1, title: "Hello World!", body: "This is my first post.", likeGiverIds: [2], createdAt: '2018-10-22T01:40:14.941Z' },
+  { id: 2, authorId: 2, title: "Good Night", body: "Have a Nice Dream =)", likeGiverIds: [2, 3], createdAt: '2018-10-24T01:40:14.941Z' } 
 ];
 
 // The GraphQL schema
@@ -68,6 +73,8 @@ const typeDefs = gql`
   type User {
     "識別碼"
     id: ID!
+    "帳號 email"
+    email: String!
     "名字"
     name: String
     "年齡"
@@ -93,9 +100,11 @@ const typeDefs = gql`
     "標題"
     title: String
     "內容"
-    content: String
+    body: String
     "按讚者"
     likeGivers: [User]
+    "建立時間 (ISO 格式)"
+    createdAt: String
   }
 
   type Query {
@@ -109,15 +118,26 @@ const typeDefs = gql`
     users: [User]
     "取得所有貼文"
     posts: [Post]
+    "依照 id 取得特定貼文"
+    post(id: ID!): Post
   }
 
+  input UpdateMyInfoInput {
+    name: String
+    age: Int
+  }
+  
   input AddPostInput {
     title: String!
-    content: String
+    body: String
   }
 
   # Mutation 定義
   type Mutation {
+    "更新me"
+    updateMyInfo(input: UpdateMyInfoInput!): User
+    "新增朋友"
+    addFriend(userId: ID!): User
     "新增貼文"
     addPost(input: AddPostInput!): Post
     "貼文按讚 (收回讚)"
@@ -128,55 +148,70 @@ const typeDefs = gql`
 const meId = 1;
 
 // Helper Functions
-const findUserById = id => users.find(user => user.id === id);
 const findUserByName = name => users.find(user => user.name === name);
-const filterPostsByAuthorId = authorId =>
-  posts.filter(post => post.authorId === authorId);
-const findPostById = id => posts.find(post => post.id === id);
+const findPostByPostId = id => posts.find(post => post.id === Number(id));
+const filterPostsByUserId = userId =>
+  posts.filter(post => userId === post.authorId);
+const filterUsersByUserIds = userIds =>
+  users.filter(user => userIds.includes(user.id));
+const findUserByUserId = userId => users.find(user => user.id === Number(userId));
+const updateUserInfo = (userId, data) =>
+  Object.assign(findUserByUserId(userId), data);
+const addPost = ({ authorId, title, body }) =>
+  (posts[posts.length] = {
+  id: posts[posts.length - 1].id + 1,
+  authorId,
+  title,
+  body,
+  likeGiverIds: [],
+  createdAt: new Date().toISOString()
+});
+const updatePost = (postId, data) =>
+  Object.assign(findPostByPostId(postId), data);
 
-// 1. 新增 User.posts field Resovler
-// 2. 新增 Post Type Resolver 及底下的 field Resolver
+// field Resolver
 const resolvers = {
   Query: {
     hello: () => 'world',
-    me: () => users[0],
-    user: (root, args, context) => {
-      return users.find(user => user.name === args.name);
-    },
+    me: () => findUserByUserId(meId),
+    user: (root, { name }, context) => findUserByName(name),
     users: () => users,
-    posts: () => posts
+    posts: () => posts,
+    post: (parent, { id }, context) => findPostByPostId(id)
   },
   // Mutation Type Resolver
   Mutation : {
-    addPost: (root, args, context) => {
-      const { input } = args;
-      const { title, content } = input;
-      // 新增 post
-      posts.push({
-        id: posts.length + 1,
-        authorId: meId,
-        title,
-        content,
-        likeGivers: []
-      });
-      // 回傳新增的那篇 post
-      return posts[posts.length - 1];
+    updateMyInfo: (root, { input }, context) => {
+      // 過濾空值
+      const data = ["name", "age"].reduce(
+        (obj, key) => (input[key] ? { ...obj, [key]: input[key] } : obj),
+        {}
+      );
+
+      return updateUserInfo(meId, data);
     },
-    likePost: (root, args, context) => {
-      const { postId } = args;
-      const post = findPostById(parseInt(postId));
+    addPost: (root, { input }, context) => {
+      const { title, body } = input;
+      return addPost({ authorId: meId, title, body });
+    },
+    likePost: (root, { postId }, context) => {
+      const post = findPostByPostId(parseInt(postId));
       if (!post) throw new Error(`Post ${postId} Not Exists`);
 
       if(!post.likeGiverIds) post.likeGiverIds = [];
       if (post.likeGiverIds.includes(meId)) {
         // 如果已經按過讚就收回
-        const index = post.likeGiverIds.findIndex(v => v === userId);
+        const index = post.likeGiverIds.findIndex(v => v === meId);
         post.likeGiverIds.splice(index, 1);
+        return updatePost(postId, {
+          likeGiverIds: post.likeGiverIds
+        });
       } else {
         // 否則就加入 likeGiverIds 名單
-        post.likeGiverIds.push(meId);
+        return updatePost(postId, {
+          likeGiverIds: post.likeGiverIds.concat(meId)
+        });
       }
-      return post;
     },
   },
   User: {
@@ -199,31 +234,14 @@ const resolvers = {
       else if (unit === "POUND") return weight / 0.45359237;
       throw new Error(`Weight unit "${unit}" not supported.`);
     },
-    // 每個 Field Resolver 都會預設傳入三個參數，
-    // 分別為上一層的資料 (即 user)、參數 (下一節會提到) 以及 context (全域變數)
-    friends: (parent, args, context) => {
-      // 從 user 資料裡提出 friendIds
-      const { friendIds } = parent;
-      // Filter 出所有 id 出現在 friendIds 的 user
-      return users.filter(user => friendIds.includes(user.id));
-    },
-    // 1. User.parent field resolver, 回傳屬於該 user 的 posts
-    posts: (parent, args, context) => {
-      // parent.id 為 userId
-      return filterPostsByAuthorId(parentInt(parent.id));
-    }
+    posts: (parent, args, context) => filterPostsByUserId(parent.id),
+    friends: (parent, args, context) => filterUsersByUserIds(parent.friendIds || [])
   },
   // 2. Post type resolver
   Post: {
-    // 2-1. parent 為 post 的資料，透過 post.likeGiverIds 連接到 users
-    likeGivers: (parent, args, context) => {
-      if(!parent.likeGiverIds) return [];
-      return parent.likeGiverIds.map(id => findUserById(id));
-    },
-    // 2-2. parent 為 post 的資料，透過 post.author
-    author: (parent, args, context) => {
-      return findUserById(parent.authorId);
-    }
+    author: (parent, args, context) => findUserByUserId(parent.authorId),
+    likeGivers: (parent, args, context) =>
+      filterUsersByUserIds(parent.likeGiverIds)
   }
 };
 
