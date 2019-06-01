@@ -1,8 +1,5 @@
-const {
-    gql,
-    ForbiddenError,
-    AuthenticationError
-} = require('apollo-server');
+import { gql, ForbiddenError, AuthenticationError } from 'apollo-server';
+
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
@@ -232,8 +229,7 @@ const resolvers = {
     }
   }; 
   
-
 module.exports = {
     typeDefs,
     resolvers
-}
+};

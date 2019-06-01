@@ -1,4 +1,4 @@
-const { gql } = require('apollo-server');
+import { gql } from 'apollo-server';
 const { userModel, postModel } = require('../models').default;
 
 // Construct a schema, using GraphQL schema language
