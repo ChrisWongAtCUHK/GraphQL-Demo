@@ -237,6 +237,15 @@ mutation ($updateMeInput: UpdateMyInfoInput!, $addPostInput: AddPostInput!) {
             title
             body
         }
+        addFriend (userId: 3) {
+            id
+            name
+            friends{
+                id
+                name
+            }
+        }
+
         # Can run this independently to toggle like
         likePost (postId: 3) {
             id

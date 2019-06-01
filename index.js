@@ -145,7 +145,7 @@ const typeDefs = gql`
   }
 `;
 
-const meId = 1;
+const meId = 2;
 
 // Helper Functions
 const findUserByName = name => users.find(user => user.name === name);
@@ -189,6 +189,19 @@ const resolvers = {
       );
 
       return updateUserInfo(meId, data);
+    },
+    addFriend: (parent, { userId }, context) => {
+      const me = findUserByUserId(meId);
+      if (me.friendIds.includes(Number(userId)))
+        throw new Error(`User ${userId} Already Friend.`);
+
+      const friend = findUserByUserId(userId);
+      const newMe = updateUserInfo(meId, {
+        friendIds: me.friendIds.concat(Number(userId))
+      });
+      updateUserInfo(userId, { friendIds: friend.friendIds.concat(meId) });
+
+      return newMe;
     },
     addPost: (root, { input }, context) => {
       const { title, body } = input;
