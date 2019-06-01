@@ -212,7 +212,7 @@
                   }
               }
           }
-          posts(name: 1) {
+          post(id: 1) {
               title
               body
               author {
