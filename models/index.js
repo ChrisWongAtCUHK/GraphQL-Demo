@@ -1,7 +1,7 @@
-const userModel = require('./user')
-const postModel = require('./post')
+import * as userModel from './user';
+import * as postModel from './post';
 
-module.exports = {
+export default {
     userModel,
     postModel
 }

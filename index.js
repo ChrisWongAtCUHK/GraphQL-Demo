@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 
 require('dotenv').config();
 
-const { userModel, postModel } = require('./models');
+const { userModel, postModel } = require('./models').default;
 
 const SALT_ROUNDS = Number(process.env.SALT_ROUNDS)
 const SECRET = process.env.SECRET
