@@ -7,8 +7,8 @@ require('dotenv').config();
 const { typeDefs, resolvers } = require('./schema');
 const { userModel, postModel } = require('./models').default;
 
-const SALT_ROUNDS = Number(process.env.SALT_ROUNDS);
-const SECRET = process.env.SECRET;
+const SALT_ROUNDS = Number(process.env.SALT_ROUNDS) || 2;
+const SECRET = process.env.SECRET || 'just_some_secret';
 
 // 初始化 Web Server ，傳入 typeDefs (Schema) 與 resolvers (Resolver)
 const server = new ApolloServer({

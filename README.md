@@ -348,3 +348,16 @@
         }
     }
     ```
+* [打造一個 GraphQL API Server 應用：部落格社交軟體 - 3 (環境變數)](https://ithelp.ithome.com.tw/articles/10205786)
+    - 用 dotenv 來幫我們做管理～～首先安裝 dotenv 套件，並新增一個 .env 檔案存放環境變數
+    ```shell
+    $ npm install --save dotenv
+    $ touch .env
+    ```
+    - 打開 .env 在裡面輸入
+    ```.env
+    # JWT Setting
+    SECRET=just_some_secret
+    # Bcrypt Setting
+    SALT_ROUNDS=2
+    ```
