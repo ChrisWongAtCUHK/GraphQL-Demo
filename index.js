@@ -206,6 +206,13 @@ const createToken = ({ id, email, name }) => jwt.sign({ id, email, name }, SECRE
 const deletePost = (postId) =>
   posts.splice(posts.findIndex(post => post.id === Number(postId)), 1)[0];
   
+const isPostExists = resolverFunc => (parent, args, context) => {
+  const { postId } = args;
+  const post = findPostByPostId(parseInt(postId));
+      if (!post) throw new Error(`Post ${postId} Not Exists`);
+  return resolverFunc.apply(null, [parent, args, context]);
+}
+
 const isPostAuthor = resolverFunc => (parent, args, context) => {
   const { postId } = args;
   const { me } = context;
@@ -272,7 +279,9 @@ const resolvers = {
       }
     }),
     deletePost: isAuthenticated(
-      isPostAuthor((root, { postId }, { me }) => deletePost(postId))
+      isPostExists(
+        isPostAuthor((root, { postId }, { me }) => deletePost(postId))
+      )
     ),
     signUp: async (root, { name, email, password }, context) => {
       // 1. 檢查不能有重複註冊 email
