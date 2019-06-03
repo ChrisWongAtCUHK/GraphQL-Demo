@@ -1,4 +1,4 @@
-import { gql, ForbiddenError, AuthenticationError } from 'apollo-server';
+import { gql, ForbiddenError } from 'apollo-server';
 
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -70,9 +70,11 @@ type User {
   posts: [Post]
 }
 
+directive @isAuthenticated on FIELD_DEFINITION
+
 extend type Query {
   "取得當下使用者"
-  me: User
+  me: User @isAuthenticated
   "取得特定 user (name 為必填)"
   user(name: String!): User
   "取得所有使用者"
@@ -126,7 +128,7 @@ const isAuthenticated = resolverFunc => (parent, args, context) => {
 // Resolvers
 const resolvers = {
     Query: {
-      me: isAuthenticated((parent, args, { me }) => userModel.findUserByUserId(me.id)),
+      me: (root, args, { me }) => userModel.findUserByUserId(me.id),
       user: (root, { name }, context) => findUserByName(name),
       users: () => userModel.getAllUsers()
     },
