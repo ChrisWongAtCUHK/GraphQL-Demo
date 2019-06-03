@@ -12,6 +12,7 @@
   "author": "Chris Wong <wc38.wong@gmail.com>",
   "license": "ISC",
   "dependencies": {
+    "@okgrow/graphql-scalars": "^0.4.5",
     "apollo-server": "^2.5.1",
     "bcrypt": "^3.0.6",
     "dotenv": "^8.0.0",

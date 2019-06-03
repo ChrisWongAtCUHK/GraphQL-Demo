@@ -378,4 +378,17 @@
     {
         "date": 1540791381379
     }
-    ```  
+    ```
+    - 引入外部套件實作 Custom Scalar Type
+    ```graphql
+    query ($date: DateTime!){
+        now
+        parseLiteralDemo: isFriday(date: "2018-10-26T10:10:10.000Z")
+        parseValueDemo:isFriday(date: $date)
+    }
+    ```
+    ```json
+    {
+        "date": "2018-10-10T10:10:10.000Z"
+    }
+    ```
