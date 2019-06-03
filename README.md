@@ -365,3 +365,17 @@
     # Bcrypt Setting
     SALT_ROUNDS=2
     ```
+* [GraphQL 入門： 實作 Custom Scalar Type (Date Scalar Type)](https://ithelp.ithome.com.tw/articles/10206366)
+    -  建立一個 Date Scalar Type
+    ```graphql
+    query ($date: Date!){
+        now
+        parseValueDemo: isFriday(date: 1540791381379)
+        parseLiteralDemo:isFriday(date: $date)
+    }
+    ```
+    ```json
+    {
+        "date": 1540791381379
+    }
+    ```  

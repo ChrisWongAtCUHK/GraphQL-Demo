@@ -1,44 +1,55 @@
 
-import { ApolloServer } from 'apollo-server';
-const jwt = require('jsonwebtoken');
+import { ApolloServer, gql } from 'apollo-server';
+const { GraphQLScalarType } = require('graphql');
+const { Kind } = require('graphql/language');
 
-require('dotenv').config();
+const typeDefs = gql`
+"""
+日期格式。顯示時以 Unix Timestamp in Milliseconds 呈現。
+"""
+scalar Date
 
-const { typeDefs, resolvers } = require('./schema');
-const { userModel, postModel } = require('./models').default;
+# 宣告後就可以在底下直接使用
+type Query {
+  # 獲取現在時間
+  now: Date
+  # 詢問日期是否為週五... TGIF!!
+  isFriday(date: Date!): Boolean
+}
+`;
 
-const SALT_ROUNDS = Number(process.env.SALT_ROUNDS) || 2;
-const SECRET = process.env.SECRET || 'just_some_secret';
-
-// 初始化 Web Server ，傳入 typeDefs (Schema) 與 resolvers (Resolver)
-const server = new ApolloServer({
-  // Schema 部分
-  typeDefs,
-  // Resolver 部分
-  resolvers,
-  context: async ({ req }) => {
-    const context = { 
-      secret: SECRET, 
-      saltRounds: SALT_ROUNDS,
-      userModel,
-      postModel
-    };
-    const token = req.headers['x-token'];
-    if (token) {
-      try {
-        // 檢查 token + 取得解析出的資料
-        const me = await jwt.verify(token, SECRET);
-        // 放進 context
-        return { ...context, me };
-      } catch (e) {
-        throw new Error('Your session expired. Sign in again.');
+const resolvers = {
+  Date: new GraphQLScalarType({
+    name: 'Date',
+    description: 'Date custom scalar type',
+    serialize(value) {
+      // 輸出到前端
+      // 回傳 unix timestamp 值
+      return value.getTime();
+    },
+    parseValue(value) {
+      // 從前端 variables 進來的 input
+      // 回傳 Date Object 到 Resolver
+      return new Date(value);
+    },
+    parseLiteral(ast) {
+      // 從前端 query 字串進來的 input
+      // 這邊僅接受輸入進來的是 Int 值
+      if (ast.kind === Kind.INT) {
+        // 回傳 Date Object 到 Resolver (記得要先 parseInt)
+        return new Date(parseInt(ast.value, 10)); // ast value is always in string format
       }
+      return null;
     }
-    return context;
+  }),
+  Query: {
+    now: () => new Date(),
+    isFriday: (root, { date }) => date.getDay() === 5
   }
-});
+};
 
-// 4. 啟動 Server
+const server = new ApolloServer({ typeDefs, resolvers });
+
 server.listen().then(({ url }) => {
   console.log(`? Server ready at ${url}`);
 });
